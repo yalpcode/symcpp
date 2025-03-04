@@ -3,10 +3,10 @@
 #include <iostream>
 
 int main() {
-    Expression<Complexes_t> ex(Complexes_t(1));
+    symcpp::Expression x("x");
 
-    std::cout << (Expression(2) * Expression("x").pow(Expression(2)) -
-                  Expression(1) / Expression("x"))
-                     .diff("x");
+    std::cout << (2 * x.pow(2) - 1 / x).diff("x") << std::endl;
+    auto df_dx = (x * symcpp::sin(x)).diff("x");
+    std::cout << df_dx << " = " << df_dx.eval({{"x", 1}});
     return 0;
 }

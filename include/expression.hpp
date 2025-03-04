@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+namespace symcpp {
 using Reals_t = long double;
 class Complexes_t : public std::complex<Reals_t> {
    public:
@@ -67,6 +68,27 @@ class Expression {
     Expression operator*(const Expression&) const;
     Expression operator/(const Expression&) const;
     Expression pow(const Expression&) const;
+
+    template <Numeric T>
+    friend Expression operator+(const T& lhs, const Expression& rhs) {
+        return Expression(lhs) + rhs;
+    }
+    template <Numeric T>
+    friend Expression operator-(const T& lhs, const Expression& rhs) {
+        return Expression(lhs) - rhs;
+    }
+    template <Numeric T>
+    friend Expression operator*(const T& lhs, const Expression& rhs) {
+        return Expression(lhs) * rhs;
+    }
+    template <Numeric T>
+    friend Expression operator/(const T& lhs, const Expression& rhs) {
+        return Expression(lhs) / rhs;
+    }
+    template <Numeric T>
+    friend Expression pow(const T& lhs, const Expression& rhs) {
+        return Expression(lhs).pow(rhs);
+    }
 
     Expression sin() const;
     Expression cos() const;
@@ -474,5 +496,27 @@ template <Numeric _Domain>
 Expression<_Domain> Expression<_Domain>::exp() const {
     return Expression(std::make_shared<Exp<_Domain>>(*this));
 }
+
+template <typename T>
+auto sin(const T& expr) {
+    return Expression(expr).sin();
+}
+
+template <typename T>
+auto cos(const T& expr) {
+    return Expression(expr).cos();
+}
+
+template <typename T>
+auto ln(const T& expr) {
+    return Expression(expr).ln();
+}
+
+template <typename T>
+auto exp(const T& expr) {
+    return Expression(expr).exp();
+}
+
+};  // namespace symcpp
 
 #endif  // EXPRESSION_HPP
