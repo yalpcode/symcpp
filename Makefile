@@ -1,11 +1,11 @@
 default_target:
 	cmake . -B build && cd build && make
 
-main:
-	cd build && ./main
+differentiator: default_target
+	cd build && ./differentiator
 
-test:
-	cd build && ./mathtest
+test: default_target
+	cd build && ./tests
 
 clear:
 	rm -rf ./build

@@ -517,6 +517,139 @@ auto exp(const T& expr) {
     return Expression(expr).exp();
 }
 
+template <Numeric _Domain = Reals_t>
+Expression<_Domain> parse_expression(const std::string& expr) {
+    std::stack<Expression<_Domain>> values;
+    std::stack<char> ops;
+
+    std::unordered_map<std::string,
+                       std::function<Expression<_Domain>(Expression<_Domain>)>>
+        functions = {
+            {"sin", [](Expression<_Domain> arg) { return arg.sin(); }},
+            {"cos", [](Expression<_Domain> arg) { return arg.cos(); }},
+            {"ln", [](Expression<_Domain> arg) { return arg.ln(); }},
+            {"exp", [](Expression<_Domain> arg) { return arg.exp(); }}};
+
+    for (size_t i = 0; i < expr.length(); ++i) {
+        if (std::isspace(expr[i])) {
+            continue;
+        }
+
+        if (std::isdigit(expr[i]) || expr[i] == '.') {
+            std::string num_str;
+            while (i < expr.length() &&
+                   (std::isdigit(expr[i]) || expr[i] == '.')) {
+                num_str += expr[i++];
+            }
+            --i;
+            values.push(Expression<_Domain>(std::stold(num_str)));
+        }
+
+        else if (std::isalpha(expr[i])) {
+            std::string token;
+            while (i < expr.length() && std::isalpha(expr[i])) {
+                token += expr[i++];
+            }
+            --i;
+
+            if (functions.find(token) != functions.end()) {
+                if (i + 1 < expr.length() && expr[i + 1] == '(') {
+                    i++;
+                    std::string arg_expr;
+                    int brace_count = 1;
+                    while (i + 1 < expr.length() && brace_count > 0) {
+                        i++;
+                        if (expr[i] == '(') brace_count++;
+                        if (expr[i] == ')') brace_count--;
+                        if (brace_count > 0) arg_expr += expr[i];
+                    }
+                    auto arg = parse_expression<_Domain>(arg_expr);
+                    values.push(functions[token](arg));
+                } else {
+                    throw std::runtime_error(
+                        "Expected '(' after function name");
+                }
+            } else {
+                values.push(Expression<_Domain>(token));
+            }
+        }
+
+        else if (expr[i] == '(') {
+            ops.push(expr[i]);
+        } else if (expr[i] == ')') {
+            while (!ops.empty() && ops.top() != '(') {
+                char op = ops.top();
+                ops.pop();
+
+                Expression<_Domain> rhs = values.top();
+                values.pop();
+                Expression<_Domain> lhs = values.top();
+                values.pop();
+
+                if (op == '+')
+                    values.push(lhs + rhs);
+                else if (op == '-')
+                    values.push(lhs - rhs);
+                else if (op == '*')
+                    values.push(lhs * rhs);
+                else if (op == '/')
+                    values.push(lhs / rhs);
+                else if (op == '^')
+                    values.push(lhs.pow(rhs));
+            }
+            ops.pop();
+        }
+
+        else if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' ||
+                 expr[i] == '/' || expr[i] == '^') {
+            while (!ops.empty() && ops.top() != '(') {
+                char op = ops.top();
+                ops.pop();
+
+                Expression<_Domain> rhs = values.top();
+                values.pop();
+                Expression<_Domain> lhs = values.top();
+                values.pop();
+
+                if (op == '+')
+                    values.push(lhs + rhs);
+                else if (op == '-')
+                    values.push(lhs - rhs);
+                else if (op == '*')
+                    values.push(lhs * rhs);
+                else if (op == '/')
+                    values.push(lhs / rhs);
+                else if (op == '^')
+                    values.push(lhs.pow(rhs));
+            }
+            ops.push(expr[i]);
+        }
+    }
+
+    while (!ops.empty()) {
+        char op = ops.top();
+        ops.pop();
+
+        Expression<_Domain> rhs = values.top();
+        values.pop();
+        Expression<_Domain> lhs = values.top();
+        values.pop();
+
+        if (op == '+')
+            values.push(lhs + rhs);
+        else if (op == '-')
+            values.push(lhs - rhs);
+        else if (op == '*')
+            values.push(lhs * rhs);
+        else if (op == '/')
+            values.push(lhs / rhs);
+        else if (op == '^')
+            values.push(lhs.pow(rhs));
+    }
+
+    return values.top();
+}
+
 };  // namespace symcpp
 
 #endif  // EXPRESSION_HPP
