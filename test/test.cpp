@@ -3,8 +3,8 @@
 #include "expression.hpp"
 
 TEST(ExpressionParsingTest, SimpleAddition) {
-    auto expr = symcpp::parse_expression("2 + 3");
-    EXPECT_EQ(expr.eval({}), 5);
+    auto expr = symcpp::parse_expression("2 + 2 * 2");
+    EXPECT_EQ(expr.eval({}), 6);
 }
 
 TEST(ExpressionParsingTest, VariableEvaluation) {
@@ -50,6 +50,18 @@ TEST(SymbolicDifferentiationTest, LnFunction) {
     auto diff_expr = expr.diff("x");
     std::map<std::string, symcpp::Reals_t> vars = {{"x", 1}};
     EXPECT_EQ(diff_expr.eval(vars), 1);
+}
+
+TEST(ExpressionParsingTest, Ex1Function) {
+    auto expr = symcpp::parse_expression("x * y");
+    std::map<std::string, symcpp::Reals_t> vars = {{"x", 10}, {"y", 12}};
+    EXPECT_EQ(expr.eval(vars), 120);
+}
+
+TEST(SymbolicDifferentiationTest, Ex2Function) {
+    auto expr = symcpp::parse_expression("x * sin(x)");
+    auto diff_expr = expr.diff("x");
+    EXPECT_EQ(diff_expr.to_string(), "(sin(x) + (x * cos(x)))");
 }
 
 int main(int argc, char **argv) {

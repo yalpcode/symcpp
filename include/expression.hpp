@@ -522,6 +522,9 @@ Expression<_Domain> parse_expression(const std::string& expr) {
     std::stack<Expression<_Domain>> values;
     std::stack<char> ops;
 
+    std::unordered_map<char, int> precedence = {
+        {'+', 1}, {'-', 1}, {'*', 2}, {'/', 2}, {'^', 3}};
+
     std::unordered_map<std::string,
                        std::function<Expression<_Domain>(Expression<_Domain>)>>
         functions = {
@@ -543,9 +546,7 @@ Expression<_Domain> parse_expression(const std::string& expr) {
             }
             --i;
             values.push(Expression<_Domain>(std::stold(num_str)));
-        }
-
-        else if (std::isalpha(expr[i])) {
+        } else if (std::isalpha(expr[i])) {
             std::string token;
             while (i < expr.length() && std::isalpha(expr[i])) {
                 token += expr[i++];
@@ -602,7 +603,8 @@ Expression<_Domain> parse_expression(const std::string& expr) {
 
         else if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' ||
                  expr[i] == '/' || expr[i] == '^') {
-            while (!ops.empty() && ops.top() != '(') {
+            while (!ops.empty() && ops.top() != '(' &&
+                   precedence[ops.top()] >= precedence[expr[i]]) {
                 char op = ops.top();
                 ops.pop();
 
