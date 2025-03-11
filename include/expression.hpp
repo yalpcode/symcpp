@@ -479,21 +479,37 @@ Expression<_Domain> Expression<_Domain>::pow(
 
 template <Numeric _Domain>
 Expression<_Domain> Expression<_Domain>::sin() const {
+    auto valuePtr = std::dynamic_pointer_cast<Value<_Domain>>(this->impl);
+    if (valuePtr) {
+        return Expression(std::sin(valuePtr->getValue()));
+    }
     return Expression(std::make_shared<Sin<_Domain>>(*this));
 }
 
 template <Numeric _Domain>
 Expression<_Domain> Expression<_Domain>::cos() const {
+    auto valuePtr = std::dynamic_pointer_cast<Value<_Domain>>(this->impl);
+    if (valuePtr) {
+        return Expression(std::cos(valuePtr->getValue()));
+    }
     return Expression(std::make_shared<Cos<_Domain>>(*this));
 }
 
 template <Numeric _Domain>
 Expression<_Domain> Expression<_Domain>::ln() const {
+    auto valuePtr = std::dynamic_pointer_cast<Value<_Domain>>(this->impl);
+    if (valuePtr) {
+        return Expression(std::log(valuePtr->getValue()));
+    }
     return Expression(std::make_shared<Ln<_Domain>>(*this));
 }
 
 template <Numeric _Domain>
 Expression<_Domain> Expression<_Domain>::exp() const {
+    auto valuePtr = std::dynamic_pointer_cast<Value<_Domain>>(this->impl);
+    if (valuePtr) {
+        return Expression(std::exp(valuePtr->getValue()));
+    }
     return Expression(std::make_shared<Exp<_Domain>>(*this));
 }
 
