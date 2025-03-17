@@ -550,6 +550,8 @@ Expression<_Domain> parse_expression(const std::string& expr) {
             {"ln", [](Expression<_Domain> arg) { return arg.ln(); }},
             {"exp", [](Expression<_Domain> arg) { return arg.exp(); }}};
 
+    bool expect_operand = true;
+
     for (size_t i = 0; i < expr.length(); ++i) {
         if (std::isspace(expr[i])) {
             continue;
@@ -563,6 +565,8 @@ Expression<_Domain> parse_expression(const std::string& expr) {
             }
             --i;
             values.push(Expression<_Domain>(std::stold(num_str)));
+
+            expect_operand = false;
         } else if (std::isalpha(expr[i])) {
             std::string token;
             while (i < expr.length() && std::isalpha(expr[i])) {
@@ -582,18 +586,30 @@ Expression<_Domain> parse_expression(const std::string& expr) {
                         if (brace_count > 0) arg_expr += expr[i];
                     }
                     auto arg = parse_expression<_Domain>(arg_expr);
+
+                    if (!expect_operand) {
+                        ops.push('*');
+                    }
+
                     values.push(functions[token](arg));
                 } else {
                     throw std::runtime_error(
                         "Expected '(' after function name");
                 }
             } else {
+                if (!expect_operand) {
+                    ops.push('*');
+                }
                 values.push(Expression<_Domain>(token));
             }
-        }
 
-        else if (expr[i] == '(') {
+            expect_operand = false;
+        } else if (expr[i] == '(') {
+            if (!expect_operand) {
+                ops.push('*');
+            }
             ops.push(expr[i]);
+            expect_operand = true;
         } else if (expr[i] == ')') {
             while (!ops.empty() && ops.top() != '(') {
                 char op = ops.top();
@@ -616,10 +632,10 @@ Expression<_Domain> parse_expression(const std::string& expr) {
                     values.push(lhs.pow(rhs));
             }
             ops.pop();
-        }
 
-        else if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' ||
-                 expr[i] == '/' || expr[i] == '^') {
+            expect_operand = false;
+        } else if (expr[i] == '+' || expr[i] == '-' || expr[i] == '*' ||
+                   expr[i] == '/' || expr[i] == '^') {
             while (!ops.empty() && ops.top() != '(' &&
                    precedence[ops.top()] >= precedence[expr[i]]) {
                 char op = ops.top();
@@ -642,6 +658,7 @@ Expression<_Domain> parse_expression(const std::string& expr) {
                     values.push(lhs.pow(rhs));
             }
             ops.push(expr[i]);
+            expect_operand = true;
         }
     }
 
