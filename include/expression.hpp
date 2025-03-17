@@ -273,7 +273,8 @@ class Power : public ExpressionImpl<_Domain> {
 
     virtual Expression<_Domain> diff(
         const std::string& variable) const override {
-        return rhs * (lhs.pow(rhs - 1)) * lhs.diff(variable);
+        return lhs.pow(rhs) *
+               (rhs.diff(variable) * lhs.ln() + rhs * lhs.diff(variable) / lhs);
     };
 
     virtual std::string to_string() const override {
