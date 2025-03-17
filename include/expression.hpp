@@ -557,6 +557,12 @@ Expression<_Domain> parse_expression(const std::string& expr) {
             continue;
         }
 
+        if (expr[i] == '-' && expect_operand) {
+            values.push(Expression<_Domain>(-1));
+            ops.push('*');
+            continue;
+        }
+
         if (std::isdigit(expr[i]) || expr[i] == '.') {
             std::string num_str;
             while (i < expr.length() &&
