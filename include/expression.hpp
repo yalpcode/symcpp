@@ -367,10 +367,6 @@ class Ln : public ExpressionImpl<_Domain> {
         const std::map<std::string, _Domain>& variables) const override {
         _Domain phlogarithmic = expr.eval(variables);
         if constexpr (std::is_same_v<_Domain, Complexes_t>) {
-            if (phlogarithmic.real() <= 0) {
-                throw std::runtime_error(
-                    "Ln domain error: real part must be positive");
-            }
         } else {
             if (phlogarithmic <= _Domain(0)) {
                 throw std::runtime_error("Ln domain error");
