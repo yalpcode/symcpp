@@ -16,10 +16,23 @@ using Reals_t = long double;
 class Complexes_t : public std::complex<Reals_t> {
    public:
     using std::complex<Reals_t>::complex;
-    operator long double() const { return static_cast<Reals_t>(this->real()); }
+    explicit operator long double() const {
+        return static_cast<Reals_t>(this->real());
+    }
+
+    Complexes_t(const std::complex<Reals_t>& other)
+        : std::complex<Reals_t>(other) {}
 };
+
+std::string to_string(const Complexes_t& c) {
+    return "(" + std::to_string(c.real()) + ", " + std::to_string(c.imag()) +
+           ")";
+}
+
 template <typename T>
-concept Numeric = std::is_arithmetic_v<T> || (std::is_same_v<T, Complexes_t>);
+concept Numeric =
+    std::is_arithmetic_v<T> || std::is_same_v<T, std::complex<long double>> ||
+    std::is_same_v<T, Complexes_t>;
 
 template <Numeric _Domain>
 class Expression;
@@ -113,7 +126,7 @@ class Expression {
     }
 };
 
-template <Numeric _Domain = Reals_t>
+template <Numeric _Domain>
 class Value : public ExpressionImpl<_Domain> {
    public:
     Value(_Domain value) : value(value) {}
@@ -129,7 +142,11 @@ class Value : public ExpressionImpl<_Domain> {
     };
 
     virtual std::string to_string() const override {
-        return std::to_string(value);
+        if constexpr (std::is_same_v<_Domain, Complexes_t>) {
+            return symcpp::to_string(value);
+        } else {
+            return std::to_string(value);
+        }
     }
 
     _Domain getValue() const { return value; }
@@ -138,7 +155,7 @@ class Value : public ExpressionImpl<_Domain> {
     _Domain value;
 };
 
-template <Numeric _Domain = Reals_t>
+template <Numeric _Domain>
 class Variable : public ExpressionImpl<_Domain> {
    public:
     Variable(std::string variable) : variable(variable) {}
@@ -148,6 +165,9 @@ class Variable : public ExpressionImpl<_Domain> {
         auto it = variables.find(variable);
         if (it != variables.end()) {
             return it->second;
+        }
+        if (variable == "i") {
+            return _Domain(Complexes_t(0, 1));
         }
         throw std::runtime_error("Variable not found: " + variable);
     }
@@ -247,7 +267,7 @@ class Divide : public ExpressionImpl<_Domain> {
     virtual _Domain eval(
         const std::map<std::string, _Domain>& variables) const override {
         _Domain divider = rhs.eval(variables);
-        if (divider == 0.) {
+        if (divider == _Domain(0.)) {
             throw std::runtime_error("Division by zero");
         }
         return lhs.eval(variables) / divider;
@@ -299,7 +319,7 @@ class Sin : public ExpressionImpl<_Domain> {
 
     virtual _Domain eval(
         const std::map<std::string, _Domain>& variables) const override {
-        return std::sin(expr.eval(variables));
+        return _Domain(std::sin(expr.eval(variables)));
     }
 
     virtual Expression<_Domain> diff(
@@ -322,12 +342,12 @@ class Cos : public ExpressionImpl<_Domain> {
 
     virtual _Domain eval(
         const std::map<std::string, _Domain>& variables) const override {
-        return std::cos(expr.eval(variables));
+        return _Domain(std::cos(expr.eval(variables)));
     }
 
     virtual Expression<_Domain> diff(
         const std::string& variable) const override {
-        return Expression(-1) * expr.sin() * expr.diff(variable);
+        return Expression<_Domain>(-1) * expr.sin() * expr.diff(variable);
     };
 
     virtual std::string to_string() const override {
@@ -346,15 +366,22 @@ class Ln : public ExpressionImpl<_Domain> {
     virtual _Domain eval(
         const std::map<std::string, _Domain>& variables) const override {
         _Domain phlogarithmic = expr.eval(variables);
-        if (phlogarithmic <= 0) {
-            throw std::runtime_error("Ln domain error");
+        if constexpr (std::is_same_v<_Domain, Complexes_t>) {
+            if (phlogarithmic.real() <= 0) {
+                throw std::runtime_error(
+                    "Ln domain error: real part must be positive");
+            }
+        } else {
+            if (phlogarithmic <= _Domain(0)) {
+                throw std::runtime_error("Ln domain error");
+            }
         }
-        return std::log(expr.eval(variables));
+        return _Domain(std::log(expr.eval(variables)));
     }
 
     virtual Expression<_Domain> diff(
         const std::string& variable) const override {
-        return Expression(1) / expr * expr.diff(variable);
+        return Expression<_Domain>(1) / expr * expr.diff(variable);
     };
 
     virtual std::string to_string() const override {
@@ -372,7 +399,7 @@ class Exp : public ExpressionImpl<_Domain> {
 
     virtual _Domain eval(
         const std::map<std::string, _Domain>& variables) const override {
-        return std::exp(expr.eval(variables));
+        return _Domain(std::exp(expr.eval(variables)));
     }
 
     virtual Expression<_Domain> diff(
@@ -405,10 +432,10 @@ Expression<_Domain> Expression<_Domain>::operator+(
     if (valueLhsPtr && valueRhsPtr) {
         return Expression(valueLhsPtr->getValue() + valueRhsPtr->getValue());
     }
-    if (valueLhsPtr && valueLhsPtr->getValue() == 0) {
+    if (valueLhsPtr && valueLhsPtr->getValue() == _Domain(0)) {
         return other;
     }
-    if (valueRhsPtr && valueRhsPtr->getValue() == 0) {
+    if (valueRhsPtr && valueRhsPtr->getValue() == _Domain(0)) {
         return *this;
     }
 
@@ -423,7 +450,7 @@ Expression<_Domain> Expression<_Domain>::operator-(
     if (valueLhsPtr && valueRhsPtr) {
         return Expression(valueLhsPtr->getValue() - valueRhsPtr->getValue());
     }
-    if (valueRhsPtr && valueRhsPtr->getValue() == 0) {
+    if (valueRhsPtr && valueRhsPtr->getValue() == _Domain(0)) {
         return *this;
     }
 
@@ -438,15 +465,15 @@ Expression<_Domain> Expression<_Domain>::operator*(
     if (valueLhsPtr && valueRhsPtr) {
         return Expression(valueLhsPtr->getValue() * valueRhsPtr->getValue());
     }
-    if (valueLhsPtr && valueLhsPtr->getValue() == 1) {
+    if (valueLhsPtr && valueLhsPtr->getValue() == _Domain(1)) {
         return other;
     }
-    if (valueRhsPtr && valueRhsPtr->getValue() == 1) {
+    if (valueRhsPtr && valueRhsPtr->getValue() == _Domain(1)) {
         return *this;
     }
-    if ((valueLhsPtr && valueLhsPtr->getValue() == 0) ||
-        (valueRhsPtr && valueRhsPtr->getValue() == 0)) {
-        return Expression(0);
+    if ((valueLhsPtr && valueLhsPtr->getValue() == _Domain(0)) ||
+        (valueRhsPtr && valueRhsPtr->getValue() == _Domain(0))) {
+        return Expression<_Domain>(0);
     }
 
     return Expression(std::make_shared<Multiply<_Domain>>(*this, other));
@@ -457,17 +484,17 @@ Expression<_Domain> Expression<_Domain>::operator/(
     const Expression<_Domain>& other) const {
     auto valueLhsPtr = std::dynamic_pointer_cast<Value<_Domain>>(this->impl);
     auto valueRhsPtr = std::dynamic_pointer_cast<Value<_Domain>>(other.impl);
-    if (valueRhsPtr && valueRhsPtr->getValue() == 0) {
+    if (valueRhsPtr && valueRhsPtr->getValue() == _Domain(0)) {
         throw std::runtime_error("Division by zero");
     }
     if (valueLhsPtr && valueRhsPtr) {
         return Expression(valueLhsPtr->getValue() / valueRhsPtr->getValue());
     }
-    if (valueRhsPtr && valueRhsPtr->getValue() == 1) {
+    if (valueRhsPtr && valueRhsPtr->getValue() == _Domain(1)) {
         return *this;
     }
-    if (valueLhsPtr && valueLhsPtr->getValue() == 0) {
-        return Expression(0);
+    if (valueLhsPtr && valueLhsPtr->getValue() == _Domain(0)) {
+        return Expression<_Domain>(0);
     }
 
     return Expression(std::make_shared<Divide<_Domain>>(*this, other));
@@ -482,10 +509,10 @@ Expression<_Domain> Expression<_Domain>::pow(
         return Expression(
             std::pow(valueLhsPtr->getValue(), valueRhsPtr->getValue()));
     }
-    if (valueLhsPtr && valueLhsPtr->getValue() == 0) {
-        return Expression(1);
+    if (valueLhsPtr && valueLhsPtr->getValue() == _Domain(0)) {
+        return Expression<_Domain>(1);
     }
-    if (valueRhsPtr && valueRhsPtr->getValue() == 1) {
+    if (valueRhsPtr && valueRhsPtr->getValue() == _Domain(1)) {
         return *this;
     }
 
