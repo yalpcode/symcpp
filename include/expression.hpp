@@ -3,10 +3,13 @@
 
 #include <cmath>
 #include <complex>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <stack>
 #include <string>
+#include <unordered_map>
 
 namespace symcpp {
 using Reals_t = long double;
@@ -243,7 +246,11 @@ class Divide : public ExpressionImpl<_Domain> {
 
     virtual _Domain eval(
         const std::map<std::string, _Domain>& variables) const override {
-        return lhs.eval(variables) / rhs.eval(variables);
+        _Domain divider = rhs.eval(variables);
+        if (divider == 0.) {
+            throw std::runtime_error("Division by zero");
+        }
+        return lhs.eval(variables) / divider;
     }
 
     virtual Expression<_Domain> diff(
@@ -338,6 +345,10 @@ class Ln : public ExpressionImpl<_Domain> {
 
     virtual _Domain eval(
         const std::map<std::string, _Domain>& variables) const override {
+        _Domain phlogarithmic = expr.eval(variables);
+        if (phlogarithmic <= 0) {
+            throw std::runtime_error("Ln domain error");
+        }
         return std::log(expr.eval(variables));
     }
 
@@ -446,6 +457,9 @@ Expression<_Domain> Expression<_Domain>::operator/(
     const Expression<_Domain>& other) const {
     auto valueLhsPtr = std::dynamic_pointer_cast<Value<_Domain>>(this->impl);
     auto valueRhsPtr = std::dynamic_pointer_cast<Value<_Domain>>(other.impl);
+    if (valueRhsPtr && valueRhsPtr->getValue() == 0) {
+        throw std::runtime_error("Division by zero");
+    }
     if (valueLhsPtr && valueRhsPtr) {
         return Expression(valueLhsPtr->getValue() / valueRhsPtr->getValue());
     }
